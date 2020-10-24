@@ -1,55 +1,57 @@
-> * 原文地址：[Web Locks API: Cross-Tab Resource Synchronization](https://blog.bitsrc.io/web-locks-api-cross-tab-resource-synchronization-54326e079756)
+> * 原文地址：[Web Locks API: 跨 Tab 资源同步](https://blog.bitsrc.io/web-locks-api-cross-tab-resource-synchronization-54326e079756)
 > * 原文作者：[Mahdhi Rezvi](https://medium.com/@mahdhirezvi)
 > * 译文出自：[掘金翻译计划](https://github.com/xitu/gold-miner)
 > * 本文永久链接：[https://github.com/xitu/gold-miner/blob/master/article/2020/web-locks-api-cross-tab-resource-synchronization.md](https://github.com/xitu/gold-miner/blob/master/article/2020/web-locks-api-cross-tab-resource-synchronization.md)
-> * 译者：
+> * 译者：[Raoul1996](https://github.com/Raoul1996)
 > * 校对者：
 
-# Web Locks API: Cross-Tab Resource Synchronization
+# Web Locks API: 跨 Tab 资源同步
 
 ![Image by [MasterTux](https://pixabay.com/users/mastertux-470906/?utm_source=link-attribution&utm_medium=referral&utm_campaign=image&utm_content=3348307) from [Pixabay](https://pixabay.com/?utm_source=link-attribution&utm_medium=referral&utm_campaign=image&utm_content=3348307)](https://cdn-images-1.medium.com/max/3840/1*voZnUOIRnDc4kc_nfm4bEQ.jpeg)
 
-## What are Locks?
+## 什么是锁（Locks）？
 
-As computers have now become more powerful, they use several CPU threads to process data. This brings forth newer problems regarding resource sharing as there can be synchronization issues when multiple threads access a single resource.
+随着计算机变得越来越强大，会使用多个 CPU 线程来对数据进行处理。多个线程访问单个资源的时候可能会受同步问题的困扰，也催生出了有关资源共享的新问题。
 
-If you are familiar with threads, you would be aware of the concept of locks. Locks are a method of synchronization that enforces access restrictions to threads such that multiple threads cannot access a single resource at the same time. Although a variant of locks allows multiple threads to access a resource at an instant, it still limits the access to read-only. I highly advise you to read a few resources to understand the concepts of locks in the operating system.
+如果你对线程熟悉的话，那么你自然会知晓锁的概念。锁是一种同步方法，，可强制对线程执行访问限制，防止多个线程同时访问单个资源。还有一种锁的变体，允许多个线程同时访问单个资源，不过仍将访问限制为只读。我强烈建议你去阅读一些材料，理解操作系统中锁的概念。
 
-![Single-thread and Multi-thread processes — Source: [Dave Kurtz](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter4/4_01_ThreadDiagram.jpg)](https://cdn-images-1.medium.com/max/2000/0*iW0a4sDyFt4hsBfQ.jpg)
+![单线程和多线程 — 来自 [Dave Kurtz](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter4/4_01_ThreadDiagram.jpg)](https://cdn-images-1.medium.com/max/2000/0*iW0a4sDyFt4hsBfQ.jpg)
 
-## What is the Web Locks API?
+## 什么是 Web Locks API？
 
-Web Locks API applies the same overall functionality of locks to web applications. This API allows a script to asynchronously hold a lock over a resource until the process is complete, and release it. When a lock is being held, no other script in the same origin can acquire a lock over the same resource although there is an exception which we would later speak about.
+Web Locks API 将锁整体应用于 web 应用。这个 API 允许一个脚本异步持有对资源的锁定，直到其处理完成之后再释放。当持有锁时，除一种特殊情况外，其他在同域下的脚本无法获得相同资源的锁。接下来我们就说说这个特殊情况。
 
-#### What are the steps?
+#### 执行流程是什么样子的呢？
 
-1. The lock is requested.
-2. Work is done while holding the lock in an asynchronous task.
-3. The lock is automatically released when the task completes.
-4. Other scripts that request a lock will be given access.
+1.申请锁。
+2. 在异步任务中锁定时完成工作。
+3. 任务完成时候锁自动释放。
+4. 允许其他脚本申请锁。
 
-When a lock is held over a resource, if another script requests a lock for the same resource from the same execution context or from other tabs/workers, the lock request will be queued. As soon as the lock is released, the first in the queue will be granted a lock and access over the resource.
+当资源上有锁时，如果处在相同的执行上下文或者其他 Tab/Work 的脚本请求相同资源的锁的时候，锁请求就会进行排队。当锁释放时候，队列中的第一个请求将被授予锁并可以访问资源。
 
-#### Locks and their Scopes
+#### 锁以及其作用域
 
+关于 Web Locks API 的作用域可能会很令人困惑。这仅仅是一个摘要，以供你更好地理解。
 The scopes on how the Web Locks API can be quite confusing. Hence here is a summary for you to understand it better.
 
-* According to the docs, locks are scoped to origins.
+* 根据文档，锁的作用域限制在同源。
 
-> The locks acquired by a tab from https://example.com have no effect on the locks acquired by a tab from https://example.org as they are separate origins.
+> Tab 从 https://example.com 获得的锁对选项卡从 https://example.org 获得的锁没有影响，因为它们的不同源。
 
-* Separate user profiles within a browser are considered separate user agents and are considered out of the scope. Therefore, they do not share a lock manager even if they are from the same origin.
-* A private mode browsing session (incognito mode) is considered a separate user agent and considered out of the scope. Hence, they do not share a lock manager even if they are from the same origin.
-* Scripts in the same context on a single origin are considered within the scope and share a lock manager. For example, two functions on a web page trying to acquire a lock over the same resource.
-* Pages and workers (agents) on a single origin opened in the same user agent share a lock manager even if they are in unrelated browsing contexts.
+* 浏览器中单独用户配置被视为单独的用户代理，视为在作用域之外。因此，即使他们的同源，也不会共享锁管理器。
+* 私有模式的浏览会话（隐身模式）被视为单独的用户代理，视为在作用域之外。因此，及时他们的同源，也不会共享锁管理器。
+* 在同源且同一个上下文中的脚本视为在作用域之内，并共享锁管理器。例如，一个网页上的两个函数尝试对同一资源加锁。
+* 打开在同一个用户代理的同源页面和 Workers（agents）共享锁管理器，即使他们不在相关的浏览上下文中。
 
-Suppose if `Script A` falls under `Lock Manager A` and `Script B` falls under `Lock Manager B`. `Script A` tries to acquire a lock on `resource X` and successfully holds the lock and performs an async task. In the meantime, `Script B` also tries to acquire a lock to `resource X` , and will successfully manage to do so as both these scripts fall under different lock managers. But if both of these scripts were to come under the same lock manager, then there will be a queue to acquire a lock over `resource X` . Hope I made that point clear.
+假设如果 `脚本 A` 属于 `锁管理器 A`，`脚本 B` 属于 `锁管理器 B`。`脚本 A` 尝试获得 `资源 X` 的锁，成功获得锁并执行异步任务。同时，`脚本 B` 也尝试获得 `资源X` 的锁，它将会成功，因为两个脚本属于不同的锁管理器。但是如果他们属于同一个锁管理器，那么将会有一个队列来获取对 `资源 X` 的锁。希望这个点我已经说明白了。
 
-#### What are these resources?
+#### 这些资源是什么？
 
-Well, they represent an abstract resource. It is simply a name we come up with, to refer to a resource we would like to hold on to. It has no meaning outside of the scheduling algorithm.
+好吧，它们代表了一种抽象资源。它只是我们想出的一个名称，指的是我们想要保留的资源。它在调度算法之外没有任何意义。
 
-In other words, in the above example, I can refer to `resource X` as the database where I have stored my data. Or it can even be the `localStorage`.
+换言之，在上面的例子中，我们可以将 `资源 X` 认为成存储我数据的数据库，或者可以是 `localStorage`。
+
 
 ## Why is Resource Coordination Important?
 
