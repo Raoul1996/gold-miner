@@ -1,95 +1,95 @@
-> * 原文地址：[Web Locks API: Cross-Tab Resource Synchronization](https://blog.bitsrc.io/web-locks-api-cross-tab-resource-synchronization-54326e079756)
+> * 原文地址：[Web Locks API: 跨 Tab 资源同步](https://blog.bitsrc.io/web-locks-api-cross-tab-resource-synchronization-54326e079756)
 > * 原文作者：[Mahdhi Rezvi](https://medium.com/@mahdhirezvi)
 > * 译文出自：[掘金翻译计划](https://github.com/xitu/gold-miner)
 > * 本文永久链接：[https://github.com/xitu/gold-miner/blob/master/article/2020/web-locks-api-cross-tab-resource-synchronization.md](https://github.com/xitu/gold-miner/blob/master/article/2020/web-locks-api-cross-tab-resource-synchronization.md)
-> * 译者：
+> * 译者：[Raoul1996](https://github.com/Raoul1996)
 > * 校对者：
 
-# Web Locks API: Cross-Tab Resource Synchronization
+# Web Locks API: 跨 Tab 资源同步
 
 ![Image by [MasterTux](https://pixabay.com/users/mastertux-470906/?utm_source=link-attribution&utm_medium=referral&utm_campaign=image&utm_content=3348307) from [Pixabay](https://pixabay.com/?utm_source=link-attribution&utm_medium=referral&utm_campaign=image&utm_content=3348307)](https://cdn-images-1.medium.com/max/3840/1*voZnUOIRnDc4kc_nfm4bEQ.jpeg)
 
-## What are Locks?
+## 什么是锁（Locks）？
 
-As computers have now become more powerful, they use several CPU threads to process data. This brings forth newer problems regarding resource sharing as there can be synchronization issues when multiple threads access a single resource.
+随着计算机变得越来越强大，会使用多个 CPU 线程来对数据进行处理。多个线程访问单个资源的时候可能会受同步问题的困扰，也催生出了有关资源共享的新问题。
 
-If you are familiar with threads, you would be aware of the concept of locks. Locks are a method of synchronization that enforces access restrictions to threads such that multiple threads cannot access a single resource at the same time. Although a variant of locks allows multiple threads to access a resource at an instant, it still limits the access to read-only. I highly advise you to read a few resources to understand the concepts of locks in the operating system.
+如果你对线程熟悉的话，那么你自然会知晓锁的概念。锁是一种同步方法，，可强制对线程执行访问限制，防止多个线程同时访问单个资源。还有一种锁的变体，允许多个线程同时访问单个资源，不过仍将访问限制为只读。我强烈建议你去阅读一些材料，理解操作系统中锁的概念。
 
-![Single-thread and Multi-thread processes — Source: [Dave Kurtz](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter4/4_01_ThreadDiagram.jpg)](https://cdn-images-1.medium.com/max/2000/0*iW0a4sDyFt4hsBfQ.jpg)
+![单线程和多线程 — 来自 [Dave Kurtz](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter4/4_01_ThreadDiagram.jpg)](https://cdn-images-1.medium.com/max/2000/0*iW0a4sDyFt4hsBfQ.jpg)
 
-## What is the Web Locks API?
+## 什么是 Web Locks API？
 
-Web Locks API applies the same overall functionality of locks to web applications. This API allows a script to asynchronously hold a lock over a resource until the process is complete, and release it. When a lock is being held, no other script in the same origin can acquire a lock over the same resource although there is an exception which we would later speak about.
+Web Locks API 将锁整体应用于 web 应用。这个 API 允许一个脚本异步持有对资源的锁定，直到其处理完成之后再释放。当持有锁时，除一种特殊情况外，其他在同域下的脚本无法获得相同资源的锁。接下来我们就说说这个特殊情况。
 
-#### What are the steps?
+#### 执行流程是什么样子的呢？
 
-1. The lock is requested.
-2. Work is done while holding the lock in an asynchronous task.
-3. The lock is automatically released when the task completes.
-4. Other scripts that request a lock will be given access.
+1.申请锁。
+2. 在异步任务中锁定时完成工作。
+3. 任务完成时候锁自动释放。
+4. 允许其他脚本申请锁。
 
-When a lock is held over a resource, if another script requests a lock for the same resource from the same execution context or from other tabs/workers, the lock request will be queued. As soon as the lock is released, the first in the queue will be granted a lock and access over the resource.
+当资源上有锁时，如果处在相同的执行上下文或者其他 Tab/Work 的脚本请求相同资源的锁的时候，锁请求就会进行排队。当锁释放时候，队列中的第一个请求将被授予锁并可以访问资源。
 
-#### Locks and their Scopes
+#### 锁以及其作用域
 
+关于 Web Locks API 的作用域可能会很令人困惑。这仅仅是一个摘要，以供你更好地理解。
 The scopes on how the Web Locks API can be quite confusing. Hence here is a summary for you to understand it better.
 
-* According to the docs, locks are scoped to origins.
+* 根据文档，锁的作用域限制在同源。
 
-> The locks acquired by a tab from https://example.com have no effect on the locks acquired by a tab from https://example.org as they are separate origins.
+> Tab 从 https://example.com 获得的锁对选项卡从 https://example.org 获得的锁没有影响，因为它们的不同源。
 
-* Separate user profiles within a browser are considered separate user agents and are considered out of the scope. Therefore, they do not share a lock manager even if they are from the same origin.
-* A private mode browsing session (incognito mode) is considered a separate user agent and considered out of the scope. Hence, they do not share a lock manager even if they are from the same origin.
-* Scripts in the same context on a single origin are considered within the scope and share a lock manager. For example, two functions on a web page trying to acquire a lock over the same resource.
-* Pages and workers (agents) on a single origin opened in the same user agent share a lock manager even if they are in unrelated browsing contexts.
+* 浏览器中单独用户配置被视为单独的用户代理，视为在作用域之外。因此，即使他们的同源，也不会共享锁管理器。
+* 私有模式的浏览会话（隐身模式）被视为单独的用户代理，视为在作用域之外。因此，及时他们的同源，也不会共享锁管理器。
+* 在同源且同一个上下文中的脚本视为在作用域之内，并共享锁管理器。例如，一个网页上的两个函数尝试对同一资源加锁。
+* 打开在同一个用户代理的同源页面和 Workers（agents）共享锁管理器，即使他们不在相关的浏览上下文中。
 
-Suppose if `Script A` falls under `Lock Manager A` and `Script B` falls under `Lock Manager B`. `Script A` tries to acquire a lock on `resource X` and successfully holds the lock and performs an async task. In the meantime, `Script B` also tries to acquire a lock to `resource X` , and will successfully manage to do so as both these scripts fall under different lock managers. But if both of these scripts were to come under the same lock manager, then there will be a queue to acquire a lock over `resource X` . Hope I made that point clear.
+假设如果 `脚本 A` 属于 `锁管理器 A`，`脚本 B` 属于 `锁管理器 B`。`脚本 A` 尝试获得 `资源 X` 的锁，成功获得锁并执行异步任务。同时，`脚本 B` 也尝试获得 `资源X` 的锁，它将会成功，因为两个脚本属于不同的锁管理器。但是如果他们属于同一个锁管理器，那么将会有一个队列来获取对 `资源 X` 的锁。希望这个点我已经说明白了。
 
-#### What are these resources?
+#### 这些资源是什么？
 
-Well, they represent an abstract resource. It is simply a name we come up with, to refer to a resource we would like to hold on to. It has no meaning outside of the scheduling algorithm.
+好吧，它们代表了一种抽象资源。它只是我们想出的一个名称，指的是我们想要保留的资源。它在调度算法之外没有任何意义。
 
-In other words, in the above example, I can refer to `resource X` as the database where I have stored my data. Or it can even be the `localStorage`.
+换言之，在上面的例子中，我们可以将 `资源 X` 认为成存储我数据的数据库，或者可以是 `localStorage`。
 
-## Why is Resource Coordination Important?
 
-It is quite rare to find the need for resource coordination in simple web applications. However more complex, JavaScript-heavy web applications may have a need for resources to be coordinated.
+## 为什么资源协调很重要？
 
-If you have worked with applications that span across several tabs and can do CRUD operations, you will have to keep the tabs in sync to avoid issues. For example, if a user opens a text editing web app on one tab, and forgetfully opens another tab of the same application. Now he has two tabs of the same application running. If he does one action on one tab and tries to do something totally different on the other tab, there can be a clash on the server when two different processes are happening over the same resource. In a situation like this, it is advisable to acquire a lock over the resource and thereby synchronizing.
+在简单的Web应用程序中很少需要进行资源协调。但是，更复杂，使用大量 JavaScript 的 Web 应用程序可能需要进行资源协调。
 
-Although the above example might result in data loss, there can be instances where you might lose real money as well. For example, take an e-commerce application that uses local storage to store the details of your cart. If you run multiple tabs of the same application, you might do unintended changes to the `localStorage` because of it not being synchronized among both tabs and can result in you paying more than what you intended to.
+如果你使用跨多个 Tab 的应用程序并且可以执行 CRUD 操作，你将必须保持选项卡同步以避免问题。如果用户在一个 Tab 上打开了文本编辑的 Web 应用程序，而忘记了另一个 Tab 打开同一应用程序。现在，他具有正在运行的同一应用程序的两个 Tab。如果他在一个 Tab 上执行一项操作，并尝试在另一 Tab 上执行完全不同的操作，则当同一资源上被两个不同的进程操作时，服务器上可能会发生冲突。在这种情况下，建议获取对资源的锁定并进行同步。
 
-Furthermore, there can be an instance where a user has opened two tabs of a stock investment web application. If the user buys a certain number of shares using one of the opened tabs, it is essential for both the tabs to be in sync to avoid situations where the customer would mistakenly do the transaction again. An easy alternative would be to only allow one tab or window of the application at a time. But mind that this can be overcome by using private browsing sessions.
+此外，可能存在用户打开了股票投资Web应用程序的两个 Tab 的情况。 如果用户使用其中一个打开的 Tab 购买了一定数量的股票，则两个 Tab 必须保持同步，以避免出现客户错误地再次进行交易的情况。 一个简单的选择是一次只允许应用程序的一个 Tab 或窗口。 但是请注意，可以通过使用私人浏览会话来绕过这个限制。
 
-Although APIs such as SharedWorker, BroadcastChannel, localStorage, sessionStorage, postMessage, unload handler can be used to manage tab communication and synchronization, they each have their shortcomings and require workarounds, which decreases code maintainability. The Web Locks API tries to simplify this process by bringing in a more standardized solution.
+尽管可以使用诸如 SharedWorker，BroadcastChannel，localStorage，sessionStorage，postMessage，卸载 handler 之类的 API 来管理选项卡通信和同步，但它们各自都有缺点，并且需要变通办法，这降低了代码的可维护性。 Web Locks API 试图通过引入更标准化的解决方案来简化此过程。
 
-## Using the Web Locks API
+## 使用 Web Locks API
 
-Using the API is pretty straightforward. But you must make sure that the browser supports this API. The `request()` method is used to request a lock over a resource.
+这个 API 使用起来比较直接了当，但是你必须要确定浏览器支持该 API。`request()` 方法经常用来请求对资源的锁定。
 
-The method accepts three arguments.
+方法接收三个参数。
 
-* name of the resource (required first argument)— a string
-* callback (required final argument) — A callback which is invoked when the lock requested is granted. It is advised to pass `async` callbacks so that it would return a Promise. Even if you pass a non-async callback, it will be wrapped into a Promise.
-* options (optional second argument passed before callback) — An object with specific properties we will discuss in a while.
+* 资源名称（必须传入的第一个参数）—— 字符串
+* 回调（必须传入的最后一个参数）—— 当请求成功时候会被调用的一个回调。建议传递 `async` 回调，这样它会返回一个 Promise。及时你没有传入异步回调，它也会包进一个 Promise 中。
+* 选项（回调之前传递的可选第二个参数）—— 具有特定属性的对象，我们将在稍后讨论。
 
-This method returns a promise which will be resolved once a lock is acquired. You can either use the `then..catch..` approach, or rather opt for the `await` approach to keep your asynchronous code synchronous.
+这个方法返回的 promise 会在资源被获得后 resolve 掉， 你可以使用 `then..catch ..` 方法，或者选择 `await` 方法来用同步的方式写异步代码。
 
 ```JavaScript
 const requestForResource1 = async() => {
  if (!navigator.locks) {
-  alert("Your browser does not support Web Locks API");
+  alert("你的浏览器不支持 Web Locks API");
   return;
  }
   
 try {
   const result = await navigator.locks.request('resource_1', async lock => {
-   // The lock has been acquired.
+   // 拿到了锁
    await doSomethingHere();
    await doSomethingElseHere();
-   //optionally return a value
+   // 可选的返回值
    return "ok";
-   // Now the lock will be released.
+   // 现在锁被释放
   });
  } catch (exception) {
   console.log(exception);
@@ -97,60 +97,59 @@ try {
   
 }
 ```
+我相信上面的代码片段是不言自明的。但是还有一些其他参数可以传递给 `request()` 函数。让我们来看看它们。
 
-I believe the above code snippet is self-explanatory. But there are some additional parameters that can be passed on to the `request()` function. Let’s have a look at them.
+## 可选参数
 
-## Optional Parameters
+#### 模式
 
-#### Mode
+对锁发起请求时可以选用两种模式。
 
-There are two modes in which a lock request can be initiated.
+* 互斥 (默认)
+* 共享
 
-* Exclusive (default)
-* Shared
-
-When an exclusive lock is requested over a resource, and if that resource is already being held over an “exclusive” or “shared” lock, it will be not be granted. But if a “shared” lock is requested over a resource which is being held by a “shared” lock, the request will be granted. However, this will not be the case when the lock being held is an “exclusive” lock as the request will be queued by the lock manager. Below is a table that summarizes this.
+当在资源上请求互斥锁，且如果该资源已经持有了“互斥”或“共享”锁，锁将不会被授予。 但是，如果在持有“共享”锁的资源上请求“共享”锁，则该请求将被批准。 但是，当持有的锁是“互斥”锁时，情况就不会如此。请求将由锁管理器排队。下表总结了这一点。
 
 ![Source: [Shun Yan Cheung](http://www.mathcs.emory.edu/~cheung/Courses/554/Syllabus/7-serializability/compat-mat.html)](https://cdn-images-1.medium.com/max/2000/0*6-VW3zuoya_NHYsP.gif)
 
-#### Signal
+#### 信号
 
-The signal property passes in an [AbortSignal](https://dom.spec.whatwg.org/#interface-AbortSignal). This allows a lock request to be aborted in the queue. You can use a timeout to abort a lock request if the request isn’t granted within a certain timeframe.
+信号属性传入一个 [中止信号](https://dom.spec.whatwg.org/#interface-AbortSignal)。这允许一个在队列中的锁请求被中止。如果在特定时间段内未批准锁定请求，则可以使用超时来中止锁定请求。
 
 ```JavaScript
 const controller = new AbortController();
-setTimeout(() => controller.abort(), 400); // wait at most 400ms
+setTimeout(() => controller.abort(), 400); //最多等待 400ms
 try {
   await navigator.locks.request('resource1', {signal: controller.signal}, async lock => {
     await doSomethingHere();
   });
 } catch (ex) {
-  // |ex| will be a DOMException with error name "AbortError" if timer fired.
+  // |ex| 如果计时器触发，将是一个 DOMException，错误名称为 ”AbortError“。
 }
 ```
 
-#### ifAvailable
+#### 如果可用
 
-This property is a boolean and is `false` by default. If true, the lock request will only be granted, if there is no need to be queued. In other words, if the lock request can be obtained without any additional waiting, it will be granted, else `null` will be returned.
+这个属性是一个默认值为 `false` 的布尔值。如果是 true，则锁请求仅在不需要排队时才会被授予。换句话说，在没有任何其他等待的情况下，锁请求才会被授予，否则将返回 `null`。
 
-But please note that when `null` is returned, the function will not be synchronous. Rather the callback would receive the value `null` which can be handled by the developer.
+但是请注意，当返回 `null` 时，该函数将不同步。而是回调将接收值 `null`，值可以由开发者进行处理。
 
 ```js
 await navigator.locks.request('resource', {ifAvailable: true}, async lock => {
   if (!lock) {
-    // Didn't receive lock. Handle appropriately
+    // 没有获得锁，自行处理
     return;
   }
   
-  //If lock received, use here.
+  // 如果获得锁，走这里
 });
 ```
 
-## Risks of Using Locks
+## 用锁的风险
 
 There are several risks associated with the implementation of locks. These are more or less due to the concept of locks themselves, not because of any bugs in the API.
 
-#### Deadlocks
+#### 死锁
 
 The concept of deadlock is associated with concurrency. A deadlock happens when a process can no longer make progress because each component is waiting for a request that can not be met.
 
@@ -158,13 +157,13 @@ The concept of deadlock is associated with concurrency. A deadlock happens when 
 
 In order to avoid deadlocks, it is essential that we follow a strict pattern when acquiring locks. There are several techniques used such as avoiding nesting locks, make sure locks are well ordered, or even use the signal optional parameter to timeout the lock request. But a carefully crafted API design would be the optimal solution to avoid deadlocks. You can read more about deadlock prevention over [here](https://en.wikipedia.org/wiki/Deadlock_prevention_algorithms).
 
-#### Unresponsive Tabs
+#### Tabs 无响应
 
 There can be situations where you discover one of your tabs has become unresponsive. If this happens while the tab is holding a lock, you can fall into a tricky situation. A `steal` boolean was introduced as a part of the options argument we previously spoke about. Although `false` by default, if it is passed as `true`, any held locks over a resource will be released and this new lock request will be granted immediately, regardless of the number of requests in the queue for the resource.
 
 But keep in mind that this controversial feature is supposed to be used only in exceptional circumstances. You can read more about this feature over [here](https://github.com/WICG/web-locks/issues/23).
 
-#### Hard to Debug
+#### Debug 困难
 
 Since there is a possibility of hidden states involved, there can be problems related to debugging. To fix this, a `query` method was introduced. This method returns the state of the lock manager at that specific instant. The result would contain details of pending and currently held locks. It would also contain details of the type of lock, resource in which the lock is held/requested and the clientId of the request.
 
@@ -201,7 +200,7 @@ The `clientId` is simply the corresponding value to the unique context (frame/wo
 
 You must also note that this method should not be used by the application to make decisions on locks being held/requested as this output contains the state of the lock manager at that **specific instant** as I’ve mentioned before. This means that a lock could be released by the time your code makes a decision.
 
-## Browser Compatibility
+## 浏览器兼容性
 
 One let down of this API is browser compatibility. Although there was a polyfill for unsupported browsers, it was later removed.
 
